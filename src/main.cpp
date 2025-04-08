@@ -11,6 +11,7 @@ void setup() {
 void loop() {
   if(WiFi.status() != WL_CONNECTED)
   {
-    
+    connectToWiFi(WIFI_SSID, WIFI_PASS);
   }
+  delay(20);
 }
