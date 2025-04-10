@@ -1,118 +1,116 @@
 #ifndef GPS_MODULE_H
 #define GPS_MODULE_H
 
-#include <TinyGPSPlus.h>
-#include <HardwareSerial.h>
+#include <Arduino.h>
+#include <TinyGPS++.h>
+
+/*
+  GPSModule
+  --------------
+  Modul ini menggabungkan TinyGPS++ dengan objek HardwareSerial.
+  Pastikan kamu menghubungkan modul GPS NEO-6M ke salah satu port hardware serial ESP32
+  (misalnya Serial1, Serial2) dan atur pin sesuai dengan board ESP32 kamu.
+
+  Cara penggunaan:
+  1. Di file utama, sertakan header ini: #include "gps_module.h"
+  2. Buat objek GPSModule, misalnya: 
+       GPSModule gps(Serial1);
+  3. Inisialisasi serial GPS di setup(), misalnya: gps.begin(9600);
+  4. Di loop(), panggil gps.update() secara terus-menerus agar data terproses.
+  5. Ambil data seperti koordinat, altitudo, atau jumlah satelit melalui fungsi yang ada.
+*/
 
 class GPSModule {
-  private:
-    TinyGPSPlus gps;
-    HardwareSerial& serialPort;
-    int rxPin;
-    int txPin;
-    uint32_t baudRate;
+public:
+  // Instance TinyGPS++ untuk parsing data GPS
+  TinyGPSPlus gps;
 
-  public:
-    // Konstruktor: gunakan port serial, dan pin RX/TX (misal: 16 dan 17)
-    GPSModule(HardwareSerial& port = Serial2, int rx = 16, int tx = 17, uint32_t baud = 9600)
-      : serialPort(port), rxPin(rx), txPin(tx), baudRate(baud) {}
+private:
+  // Pointer ke port serial yang digunakan untuk komunikasi GPS
+  HardwareSerial* gpsSerial;
 
-    // Inisialisasi serial untuk GPS
-    void begin() {
-      serialPort.begin(baudRate, SERIAL_8N1, rxPin, txPin);
-      Serial.println("📡 GPS Module siap...");
+public:
+  // Constructor: menerima referensi ke HardwareSerial (misal, Serial1)
+  GPSModule(HardwareSerial &serialPort) : gpsSerial(&serialPort) {}
+
+  // Inisialisasi port serial untuk komunikasi dengan modul GPS
+  void begin(unsigned long baudRate = 9600) {
+    gpsSerial->begin(baudRate, SERIAL_8N1);
+  }
+
+  // Update data GPS: panggil fungsi ini di dalam loop() agar data baru selalu diproses
+  void update() {
+    while (gpsSerial->available()) {
+      char c = gpsSerial->read();
+      gps.encode(c);
     }
+  }
 
-    // Panggil secara rutin di loop() untuk parsing data dari GPS
-    void update() {
-      while (serialPort.available()) {
-        gps.encode(serialPort.read());
-      }
-    }
+  // Cek apakah GPS memiliki data lokasi yang valid
+  bool hasValidLocation() {
+    return gps.location.isValid();
+  }
 
-    // Cek apakah data GPS valid
-    bool isValid() {
-      return gps.location.isValid();
-    }
+  // Ambil nilai latitude. Jika data tidak valid, akan bernilai 0.0
+  double getLatitude() {
+    return gps.location.lat();
+  }
 
-    // Ambil latitude
-    double latitude() {
-      return gps.location.lat();
-    }
+  // Ambil nilai longitude. Jika data tidak valid, akan bernilai 0.0
+  double getLongitude() {
+    return gps.location.lng();
+  }
 
-    // Ambil longitude
-    double longitude() {
-      return gps.location.lng();
-    }
+  // Ambil nilai altitude (meter)
+  double getAltitude() {
+    return gps.altitude.meters();
+  }
 
-    // Ambil kecepatan dalam km/h
-    double speedKmph() {
-      return gps.speed.kmph();
-    }
+  // Ambil jumlah satelit yang digunakan GPS
+  int getSatellites() {
+    return gps.satellites.value();
+  }
 
-    // Ambil waktu (jika tersedia)
-    String getTime() {
-      if (gps.time.isValid()) {
-        char buffer[16];
-        sprintf(buffer, "%02d:%02d:%02d", gps.time.hour(), gps.time.minute(), gps.time.second());
-        return String(buffer);
-      }
-      return "N/A";
-    }
-
-    // Ambil tanggal (jika tersedia)
-    String getDate() {
-      if (gps.date.isValid()) {
-        char buffer[16];
-        sprintf(buffer, "%02d/%02d/%04d", gps.date.day(), gps.date.month(), gps.date.year());
-        return String(buffer);
-      }
-      return "N/A";
-    }
-
-    // Altitude dalam meter
-    double altitude() {
-      return gps.altitude.meters();
-    }
-
-    // HDOP (akurasi horizontal)
-    double hdop() {
-      return gps.hdop.hdop();
-    }
-
-    // Satelit yang terkoneksi
-    int satellites() {
-      return gps.satellites.value();
-    }
+  // Fungsi debug: mencetak status data GPS ke Serial monitor
+  void printStatus() {
+    Serial.print("Latitude: ");
+    Serial.println(getLatitude());
+    Serial.print("Longitude: ");
+    Serial.println(getLongitude());
+    Serial.print("Altitude: ");
+    Serial.print(getAltitude());
+    Serial.println(" m");
+    Serial.print("Satellites: ");
+    Serial.println(getSatellites());
+  }
 };
 
 #endif
 
-
 /*
-Example
-
+#include <Arduino.h>
 #include "gps_module.h"
 
-GPSModule gps(Serial2, 16, 17, 9600); // RX, TX, Baudrate
+// Misalnya gunakan Serial1 untuk GPS, pastikan pin TX/RX sesuai dengan wiring pada ESP32 kamu.
+GPSModule gps(Serial1);
 
 void setup() {
   Serial.begin(115200);
-  gps.begin();
+  // Inisialisasi serial untuk GPS dengan baud rate 9600 (umum untuk NEO-6M)
+  gps.begin(9600);
+  Serial.println("GPS Module siap...");
 }
 
 void loop() {
+  // Baca data GPS secara terus-menerus
   gps.update();
-
-  if (gps.isValid()) {
-    Serial.printf("📍 Lat: %.6f, Lon: %.6f\n", gps.latitude(), gps.longitude());
-    Serial.printf("🕒 %s 📅 %s | Alt: %.2f m | Speed: %.2f km/h | Sats: %d\n",
-                  gps.getTime().c_str(), gps.getDate().c_str(),
-                  gps.altitude(), gps.speedKmph(), gps.satellites());
-  } else {
-    Serial.println("❌ GPS belum lock...");
+  
+  // Jika data lokasi valid, cetak informasinya
+  if (gps.hasValidLocation()) {
+    gps.printStatus();
   }
-
+  
   delay(1000);
 }
+
 */
