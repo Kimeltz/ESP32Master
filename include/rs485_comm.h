@@ -4,41 +4,43 @@
 #include <Arduino.h>
 
 // === RS485 dengan MAX485 (half-duplex) ===
-// DE dan RE dihubungkan ke satu pin kontrol (biasanya HIGH untuk kirim, LOW untuk terima)
+// DE (Driver Enable) → HIGH untuk kirim
+// RE (Receiver Enable) → LOW untuk menerima
 
 class RS485Comm {
   private:
     HardwareSerial& serialPort;
-    int controlPin;
+    int dePin;
+    int rePin;
     unsigned long baudRate;
 
   public:
-    RS485Comm(HardwareSerial& port = Serial1, int ctrlPin = 32, unsigned long baud = 9600)
-      : serialPort(port), controlPin(ctrlPin), baudRate(baud) {}
+    RS485Comm(HardwareSerial& port = Serial1, int de = 32, int re = 33, unsigned long baud = 9600)
+      : serialPort(port), dePin(de), rePin(re), baudRate(baud) {}
 
     void begin() {
-      pinMode(controlPin, OUTPUT);
-      setReceiveMode(); // default: mode terima
+      pinMode(dePin, OUTPUT);
+      pinMode(rePin, OUTPUT);
+      setReceiveMode(); // default ke mode terima
       serialPort.begin(baudRate);
     }
 
-    // Mode kirim
     void setTransmitMode() {
-      digitalWrite(controlPin, HIGH);
-      delayMicroseconds(10); // waktu tunda kecil agar stabil
-    }
-
-    // Mode terima
-    void setReceiveMode() {
-      digitalWrite(controlPin, LOW);
+      digitalWrite(dePin, HIGH);
+      digitalWrite(rePin, HIGH);
       delayMicroseconds(10);
     }
 
-    // Kirim data
+    void setReceiveMode() {
+      digitalWrite(dePin, LOW);
+      digitalWrite(rePin, LOW);
+      delayMicroseconds(10);
+    }
+
     void send(const String& data) {
       setTransmitMode();
       serialPort.print(data);
-      serialPort.flush(); // tunggu sampai selesai kirim
+      serialPort.flush();
       setReceiveMode();
     }
 
@@ -49,7 +51,6 @@ class RS485Comm {
       setReceiveMode();
     }
 
-    // Cek dan baca data masuk
     bool available() {
       return serialPort.available();
     }
@@ -67,32 +68,14 @@ class RS485Comm {
     int readByte() {
       return serialPort.read();
     }
+
+    void ping() {
+      send("PING\n");
+    }
+
+    void pong() {
+      send("PONG\n");
+    }
 };
 
 #endif
-
-/*
-Example
-
-#include "rs485_comm.h"
-
-RS485Comm rs485(Serial1, 32, 9600); // Gunakan Serial1, pin kontrol DE+RE di GPIO32
-
-void setup() {
-  Serial.begin(115200);
-  rs485.begin();
-  Serial.println("📡 RS485 siap!");
-}
-
-void loop() {
-  rs485.send("Hello dari ESP32!\n");
-  delay(1000);
-
-  if (rs485.available()) {
-    String msg = rs485.readLine();
-    Serial.print("📥 Terima RS485: ");
-    Serial.println(msg);
-  }
-}
-
-*/
