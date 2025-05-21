@@ -4,49 +4,52 @@
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
 #include <SPI.h>
-#include <deque>
+#include <queue>
 
 // ==== Konfigurasi Hardware ====
-#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
-#define DATA_PIN    23  // MOSI
-#define CLK_PIN     18  // SCK
-#define CS_PIN       5  // SS / LOAD
-#define MAX_DEVICES   4
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW // Ganti jika modul berbeda
+#define MAX_DEVICES 4
+#define DATA_PIN    23  // MOSI (VSPI)
+#define CLK_PIN     18  // SCK (VSPI)
+#define CS_PIN      5   // SS
 
 // ==== Inisialisasi Parola ====
 MD_Parola ledmat = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
 // ==== Konfigurasi Display ====
-const uint16_t SCROLL_SPEED = 75;
-std::deque<String> msgQueue;
-bool animasiAktif = false;
+std::queue<String> msgQueue;
+bool isAnimating = false;
 
-// ==== Fungsi untuk Menambahkan Pesan ke Antrian ====
+// ==== Fungsi Tambah Pesan ====
 void displayLEDMAT(const String& msg) {
-  msgQueue.push_back(msg);
+  msgQueue.push(msg);
 }
 
-// ==== Fungsi untuk Menampilkan Animasi (dipanggil di loop) ====
+// ==== Fungsi Update Display ====
 void updateLEDMAT() {
-  if (!animasiAktif && !msgQueue.empty()) {
-    String nextMsg = msgQueue.front();
-    msgQueue.pop_front();
-
-    ledmat.displayScroll(nextMsg.c_str(), PA_CENTER, PA_SCROLL_LEFT, SCROLL_SPEED);
-    ledmat.displayReset();
-    animasiAktif = true;
+  if (ledmat.displayAnimate()) { // Animasi selesai
+    isAnimating = false;
+    ledmat.displayReset(); // Reset untuk pesan berikutnya
   }
 
-  if (animasiAktif && ledmat.displayAnimate()) {
-    animasiAktif = false;
+  if (!isAnimating && !msgQueue.empty()) {
+    String nextMsg = msgQueue.front();
+    msgQueue.pop();
+
+    // Gunakan displayText() untuk testing awal
+    ledmat.displayText(nextMsg.c_str(), PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+    isAnimating = true;
   }
 }
 
-// ==== Fungsi Setup untuk Inisialisasi ====
+// ==== Fungsi Inisialisasi ====
 void initLEDMAT() {
+  SPI.begin(CLK_PIN, -1, DATA_PIN, CS_PIN); // ESP32: CLK, MISO, MOSI, SS
   ledmat.begin();
-  ledmat.setIntensity(5);  // Kecerahan (0–15)
+  ledmat.setFont(NULL);
+  ledmat.setIntensity(5);
   ledmat.displayClear();
+  ledmat.displaySuspend(false); // Pastikan display aktif
 }
 
 #endif

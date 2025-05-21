@@ -15,7 +15,7 @@ class RS485Comm {
     unsigned long baudRate;
 
   public:
-    RS485Comm(HardwareSerial& port = Serial1, int de = 32, int re = 33, unsigned long baud = 9600)
+    RS485Comm(HardwareSerial& port = Serial2, int de = 32, int re = 33, unsigned long baud = 9600)
       : serialPort(port), dePin(de), rePin(re), baudRate(baud) {}
 
     void begin() {

@@ -29,7 +29,6 @@ int satellites = 0;
 // === RS485 ===
 #define RS485_BAUD 9600
 RS485Comm rs485(Serial1, RS485_DE_PIN, RS485_RE_PIN, RS485_BAUD); // DE = GPIO32, RE = GPIO33
-unsigned long lastDataRead = 0;
 
 // === Global Variables ===
 unsigned long lastDataSent = 0;
@@ -53,7 +52,7 @@ void setup() {
   Serial.println("GPS Module siap...");
   initLEDMAT();
   delay(100);
-  ledmat.displayScroll("Ruangan Aman", PA_CENTER, PA_SCROLL_LEFT, 75);
+  displayLEDMAT("Ruangan Aman");
 }
 
 void loop() {
@@ -74,22 +73,19 @@ void loop() {
       ledmat.displayScroll("Ruangan Aman", PA_CENTER, PA_SCROLL_LEFT, 75);
     }
   }
-  delay(5);
+  
+  delay(1000);
 }
 
 void readRS485() {
-  if(millis() - lastDataRead < 500)
-  {
-    if (rs485.available()) {
-      String data = rs485.readLine();  // Terima satu baris
-      Serial.print("📥 Diterima: ");
-      Serial.println(data);
+  if (rs485.available()) {
+    String data = rs485.readLine();  // Terima satu baris
+    Serial.print("📥 Diterima: ");
+    Serial.println(data);
 
-      // Parsing data (contoh: LPG:23.45;CO:14.67;SMK:76.23;...)
-      parseData(data);
-    }
-  } // Kirim setiap 5 detik
-  lastDataRead = millis();
+    // Parsing data (contoh: LPG:23.45;CO:14.67;SMK:76.23;...)
+    parseData(data);
+  }
 }
 
 void parseData(const String& data) {
