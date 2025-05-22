@@ -1,0 +1,3 @@
+#define WIFI_SSID "Stun"
+#define WIFI_PASS "stunt12345"
+#define TOKEN "3|Mu0X2G51SIDdhH3AcCXCEIyhZauTlKlY176NyJ7A1a68e736"
