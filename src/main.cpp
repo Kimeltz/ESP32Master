@@ -78,7 +78,7 @@ void loop() {
 }
 
 void readRS485() {
-  if(millis() - lastDataRead < 500)
+  if(millis() - lastDataRead >= 500)
   {
     if (rs485.available()) {
       String data = rs485.readLine();  // Terima satu baris
@@ -88,8 +88,8 @@ void readRS485() {
       // Parsing data (contoh: LPG:23.45;CO:14.67;SMK:76.23;...)
       parseData(data);
     }
+    lastDataRead = millis();
   } // Kirim setiap 5 detik
-  lastDataRead = millis();
 }
 
 void parseData(const String& data) {
@@ -100,28 +100,28 @@ void parseData(const String& data) {
     if (sep == -1 || end == -1) break;
 
     String key = data.substring(start, sep);
-    float value = data.substring(sep + 1, end).toFloat();
+    String value = data.substring(sep + 1, end);
 
     if (key == "SID") SID = value;
     // else if (key == "LPG") lpg = value;
-    else if (key == "CO") co = value;
-    else if (key == "GAS") lpg = value;
+    else if (key == "CO") co = value.toFloat();
+    else if (key == "GAS") lpg = value.toFloat();
     // else if (key == "SMK") smoke = value;
-    else if (key == "TEMP1") t1 = value;
-    else if (key == "TEMP2") t2 = value;
-    else if (key == "TEMP3") t3 = value;
-    else if (key == "TEMP4") t4 = value;
-    else if (key == "HUM") humid = value;
-    else if (key == "PRS") press = value;
+    else if (key == "TEMP1") t1 = value.toFloat();
+    else if (key == "TEMP2") t2 = value.toFloat();
+    else if (key == "TEMP3") t3 = value.toFloat();
+    else if (key == "TEMP4") t4 = value.toFloat();
+    else if (key == "HUM") humid = value.toFloat();
+    else if (key == "PRS") press = value.toFloat();
 
     start = end + 1;
 
-    sendDataToServer();
   }
+  sendDataToServer();
 }
 
 void gpsRoutine() {
-  if (gpsUpdateInterval > millis() - gpsLastUpdate) 
+  if (millis() - gpsLastUpdate >= gpsUpdateInterval) 
   {
     gpsLastUpdate = millis();
     gps.update();
@@ -132,7 +132,6 @@ void gpsRoutine() {
       longitude = gps.getLongitude();
       satellites = gps.getSatellites();
     }
-    delay(1000);
   }
 }
 
@@ -162,7 +161,7 @@ int classifyCondition() {
   if (avgTemp > 50) score++;
   if (humid < 30) score++;
   if (lpg > 400) score++;
-  if (co > 300) score++;
+  if (co > 20) score+= co/20;
   if ((abs(t1-avgTemp) > 5.0) || (abs(t2-avgTemp) > 5.0) || (abs(t3-avgTemp) > 5.0) || (abs(t4-avgTemp) > 5.0)) score++;
 
   if (score >= 4) return 3; // Kebakaran
