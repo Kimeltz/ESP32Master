@@ -15,9 +15,15 @@ String SID;
 // === Pins ===
 #define RS485_DE_PIN 32
 #define RS485_RE_PIN 33
+#define BUZZER_PIN 25
+
+// === Buzzers ===
+unsigned long previousBuzzerMillis = 0;
+int buzzerState = LOW;
+int buzzerInterval = 0;
 
 // === GPS ===
-HardwareSerial GPS_Serial(2);
+HardwareSerial GPS_Serial(1);
 GPSModule gps(GPS_Serial);
 long gpsLastUpdate = 0;
 long gpsUpdateInterval = 1000; // 1 second
@@ -28,12 +34,12 @@ int satellites = 0;
 
 // === RS485 ===
 #define RS485_BAUD 9600
-RS485Comm rs485(Serial1, RS485_DE_PIN, RS485_RE_PIN, RS485_BAUD); // DE = GPIO32, RE = GPIO33
+RS485Comm rs485(Serial2, RS485_DE_PIN, RS485_RE_PIN, RS485_BAUD); // DE = GPIO32, RE = GPIO33
 unsigned long lastDataRead = 0;
 
 // === Global Variables ===
 unsigned long lastDataSent = 0;
-bool flag = false;
+int flag = 0;
 
 // === FUNCS ===
 void readRS485();
@@ -42,9 +48,12 @@ void gpsRoutine();
 bool detectFire();
 int classifyCondition();
 void sendDataToServer();
+void buzzerAlert();
 
 void setup() {
   Serial.begin(115200);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
   rs485.begin();
   delay(1000);
   connectToWiFi(WIFI_SSID, WIFI_PASS);
@@ -63,7 +72,7 @@ void loop() {
   }
   gpsRoutine(); 
   readRS485();
-  flag = detectFire();
+  buzzerAlert();
   if(ledmat.displayAnimate())
   {
       if (flag) {
@@ -117,6 +126,7 @@ void parseData(const String& data) {
     start = end + 1;
 
   }
+  flag = classifyCondition();
   sendDataToServer();
 }
 
@@ -210,4 +220,22 @@ void sendDataToServer() {
     http.end();
     lastDataSent = millis();
     }
+}
+
+void buzzerAlert() {
+  switch (flag) {
+    case 3: buzzerInterval = 1000; break; 
+    case 2: buzzerInterval = 500;  break; 
+    case 1: buzzerInterval = 250;  break; 
+    default:
+      digitalWrite(BUZZER_PIN, LOW);
+      return;
+  }
+
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousBuzzerMillis >= buzzerInterval) {
+    previousBuzzerMillis = currentMillis;
+    buzzerState = !buzzerState;
+    digitalWrite(BUZZER_PIN, buzzerState);
+  }
 }
