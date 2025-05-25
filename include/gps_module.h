@@ -35,7 +35,7 @@ public:
 
   // Inisialisasi port serial untuk komunikasi dengan modul GPS
   void begin(unsigned long baudRate = 9600) {
-    gpsSerial->begin(baudRate, SERIAL_8N1);
+    gpsSerial->begin(baudRate, SERIAL_8N1, 26, 27);
   }
 
   // Update data GPS: panggil fungsi ini di dalam loop() agar data baru selalu diproses
